@@ -58,7 +58,7 @@ Check `expanded.isa` for `v_mad_i32_i24`. A result only counts when RGA confirms
 - [x] Per-game bridge installation, shader dumping and reversible removal.
 - [x] DXIL override loading by original FSR4 shader hash.
 - [ ] Run the RGA probe on a real RX 580 / GFX803 Windows machine.
-- [ ] Build a semantics-preserving DXIL transformation for signed packed-int8 dot products.
+- [x] Add a native Windows DXIL rewrite prototype for signed packed-int8 dot products, with a DXC assembly/validation self-test.
 - [ ] Prove AMD's Windows driver compiles the rewritten form to `v_mad_i32_i24` (or another equally efficient GFX803 sequence).
 - [ ] Produce GFX803-tuned DXIL replacements for the FSR4 network passes and validate their output.
 - [ ] Add actual GFX803 quality/speed tiers, shader autotuning and GPU-time profiling to the Windows bridge.
@@ -70,6 +70,7 @@ Check `expanded.isa` for `v_mad_i32_i24`. A result only counts when RGA confirms
 - Generic DLL attachment does not accelerate FSR4.
 - The existing `stock`, `bc250`, `hybrid`, `lossless`, `quality`, `balanced` and `speed` profile names are stored in JSON but are not yet connected to GFX803 DXIL shader variants.
 - The Linux RADV patch and SPIR-V layer cannot be loaded into a native Windows game.
+- The Windows DXIL rewrite is a prototype; DXC validation does not prove AMD driver support, GFX803 ISA quality, correctness across real FSR4 shader variants, or better frame time.
 - No Windows RX 580 performance claims are made until the shader transformation and output are validated.
 
 ## References
