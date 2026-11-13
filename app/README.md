@@ -6,7 +6,7 @@ A self-contained Windows x64 WPF app. GitHub Actions builds the EXE and portable
 
 Run **Actions → Build Windows Control Center**, or push a change to `app/**`, `addons/**`, `tools/windows/**` or the workflow itself.
 
-The build compiles `addons/src/fsr4_gfx803_addon.cpp` against the ReShade add-on API, builds a native DXIL text transformer and DXC validation helper, and includes all of them in the portable ZIP. The DXIL transform path does not require Python on the target PC.
+The build compiles `addons/src/fsr4_gfx803_addon.cpp` against the ReShade add-on API, builds a native DXIL text transformer and DXC validation helper, and includes the application, helper tools, source files, GPL licenses, and third-party notices in the portable ZIP. The DXIL transform path does not require Python on the target PC.
 
 ## Included UI
 
