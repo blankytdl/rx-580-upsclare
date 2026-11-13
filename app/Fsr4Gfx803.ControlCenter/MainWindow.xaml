@@ -163,6 +163,7 @@
                             <StackPanel>
                                 <TextBlock Text="Requirements and limits" FontWeight="Bold" Foreground="#FFD3A3" FontSize="14"/>
                                 <TextBlock Text="Install ReShade with FULL add-on support first. Standard ReShade builds with limited add-on support will not load this bridge. This is a startup pipeline add-on, not a late attachment: close and restart the game after install. It can dump FSR4 shader DXIL and replace shaders when matching .dxil files are present. No GFX803-validated replacement pack is bundled yet." Foreground="#E8D5C1" TextWrapping="Wrap" FontSize="12" Margin="0,7,0,0" LineHeight="20"/>
+                                <Button Content="Download ReShade 6.8.0 (full add-on support)" HorizontalAlignment="Left" Margin="0,12,0,0" Click="InstallReshade_Click"/>
                             </StackPanel>
                         </Border>
 
