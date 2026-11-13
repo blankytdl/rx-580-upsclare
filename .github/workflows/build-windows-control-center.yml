@@ -20,7 +20,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: crosire/reshade
-          ref: main
+          ref: 7bf9de8b33bcc76c3177007e65d73c72dd0f34c0
           path: deps/reshade
           persist-credentials: false
 
