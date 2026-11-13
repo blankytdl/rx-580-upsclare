@@ -285,25 +285,32 @@ extern "C" __declspec(dllexport) const char *NAME = "FSR4 GFX803 DXIL Bridge";
 extern "C" __declspec(dllexport) const char *DESCRIPTION =
     "Per-game FSR4 DXIL shader replacement and FSR4 shader dump bridge for GFX803 research.";
 
-BOOL APIENTRY DllMain(HMODULE module, DWORD reason, LPVOID)
+// ReShade calls AddonInit after LoadLibrary has returned, outside the Windows loader lock.
+// Keep filesystem access and event registration out of DllMain.
+extern "C" __declspec(dllexport) bool AddonInit(HMODULE module, HMODULE reshade_module)
 {
-    switch (reason)
-    {
-    case DLL_PROCESS_ATTACH:
-    {
-        if (!reshade::register_addon(module))
-            return FALSE;
+    if (!reshade::register_addon(module, reshade_module))
+        return false;
 
-        wchar_t path[MAX_PATH]{};
-        GetModuleFileNameW(module, path, MAX_PATH);
-        g_addon_directory = std::filesystem::path(path).parent_path();
-        LoadConfiguration();
-        reshade::register_event<reshade::addon_event::create_pipeline>(OnCreatePipeline);
-        break;
+    wchar_t path[MAX_PATH]{};
+    if (GetModuleFileNameW(module, path, MAX_PATH) == 0)
+    {
+        reshade::unregister_addon(module, reshade_module);
+        return false;
     }
-    case DLL_PROCESS_DETACH:
-        reshade::unregister_addon(module);
-        break;
-    }
+
+    g_addon_directory = std::filesystem::path(path).parent_path();
+    LoadConfiguration();
+    reshade::register_event<reshade::addon_event::create_pipeline>(OnCreatePipeline);
+    return true;
+}
+
+extern "C" __declspec(dllexport) void AddonUninit(HMODULE module, HMODULE reshade_module)
+{
+    reshade::unregister_addon(module, reshade_module);
+}
+
+BOOL APIENTRY DllMain(HMODULE, DWORD, LPVOID)
+{
     return TRUE;
 }
