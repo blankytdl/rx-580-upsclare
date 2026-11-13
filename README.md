@@ -1,92 +1,83 @@
 # RX 580 FSR4 Upscaler — Windows GFX803 port
 
-A Windows-first research and development project for bringing the **FSR4 GFX803/Polaris shader optimizations** to the Radeon RX 580 without replacing the AMD graphics driver.
+A Windows-first research and development project for bringing the FSR4 GFX803/Polaris shader optimizations to the Radeon RX 580.
 
-> **Status: Windows tooling preview.** This repository now includes a DirectX 12 / AMD ISA probe and a WPF Control Center with a generic x64 DLL attach feature. It still does **not** contain a working Windows FSR4 shader runtime or an FSR4-specific game injector. The generic DLL loader is not the FSR4 implementation.
+> **Status: Windows bridge + compiler research preview.** The repository now builds a Windows Control Center and a ReShade D3D12 add-on. The add-on can be installed per game, dump FSR4 compute shaders, and load user-provided hash-matched DXIL replacements before pipelines are created. **A validated GFX803-specific DXIL replacement pack is not included yet**, so this is not yet equivalent to the full Linux GFX803 implementation.
 
-## Goal
+## Windows Control Center
 
-Run the FSR4 GFX803 optimizations on an RX 580 under native Windows, ideally with the same image quality and no measurable extra overhead compared with the optimized Linux implementation.
+The WPF app lives in `app/Fsr4Gfx803.ControlCenter/`. GitHub Actions builds a self-contained x64 EXE and portable ZIP.
 
-The first question to prove is whether AMD's Windows DirectX 12 compiler can emit the GCN4 instruction:
+- Overview and diagnostics, including the AMD RGA GFX803 ISA probe.
+- Running-process inspection and a generic x64 DLL loader for diagnostics (not the FSR4 rendering path).
+- Per-game ReShade bridge installation and removal with backup/restore.
+- Per-game configuration for FSR4-only DXIL shader dumping, verbosity and an external DXIL override folder.
+- Profile editor for the upstream DLL variants, tiers, shader set path, autotune and profiling options. Options not implemented by the Windows runtime are saved as profile data only.
 
-`v_mad_i32_i24`
+See [app/README.md](app/README.md) and [addons/README.md](addons/README.md).
 
-for the expanded signed 8-bit multiply-accumulate sequence used by the Linux GFX803 layer.
+## What the Windows bridge actually does
 
-The instruction is a GPU ISA operation, not a Linux feature. The Windows port must persuade the Windows shader compiler to generate it; HLSL or DXIL source alone cannot guarantee that.
+The bridge is a ReShade add-on built as `FSR4-GFX803.addon64`. ReShade must be installed in the game with **full add-on support**. The Control Center copies the add-on into ReShade's configured add-on search directory and writes `FSR4-GFX803.ini`.
 
-## Control Center (Windows x64)
+When the game starts, the add-on listens to ReShade's D3D12 `create_pipeline` event. For FSR4 model compute shaders it:
 
-The WPF application lives in `app/Fsr4Gfx803.ControlCenter/`. GitHub Actions builds a self-contained Windows x64 executable and ZIP whenever code is pushed to `main`, and can also be run manually from **Actions → Build Windows Control Center**.
+1. Reads the 16-byte DXBC container hash from the shader header.
+2. Optionally dumps the incoming FSR4 shader as `<hash>.dxil`.
+3. Loads a replacement with the same hash from the configured override directory, if one exists.
+4. Leaves unmatched shaders untouched.
 
-The ZIP includes:
+This is a renderer pipeline interception route, not a late process attach. Close and restart the game after enabling or changing it. It does not bypass anti-cheat and should only be used with trusted add-ons in offline/single-player games.
 
-- `FSR4-GFX803-ControlCenter.exe` — no separate .NET runtime installation required.
-- `tools/windows/` — the RGA probe script and its HLSL source.
+The bridge is based on the Windows ReShade add-on approach in [zgauthier2000/fsr4-shader-performance-overrides](https://github.com/zgauthier2000/fsr4-shader-performance-overrides). That project has demonstrated DXIL shader replacement on Windows, but its documented tests are on newer Radeon GPUs. Its RDNA-specific shaders must **not** be assumed to optimize GFX803.
 
-The Control Center can enumerate running processes, load a user-selected x64 DLL into a selected native x64 process, save/export upstream-style profiles, and run the GFX803 RGA compiler probe.
+## Original Linux GFX803 implementation
 
-**Important:** DLL attachment is generic. It confirms only that Windows loaded the selected module. It does not add FSR4 hooks or shader optimization by itself. The profile editor preserves the upstream DLL variants, tiers, direct shader-set selection, autotune, profiling, debug, SPIR-V dump, SDot and cache settings, but these are saved as profile data only until the Windows runtime implements them. Use only trusted DLLs and offline/single-player games; no anti-cheat bypass is included.
+The upstream Linux project combines:
 
-## Why this approach
+1. A patched Mesa/RADV compiler that lowers suitable signed-int8 multiply-accumulates to `v_mad_i32_i24`.
+2. A Vulkan layer that expands packed `OpSDot` operations and replaces FSR4 network shaders with tuned SPIR-V sets.
+3. Compatible FSR4 upscaler DLL variants and an OptiScaler integration.
 
-The Linux `fsr4-gfx803` project combines:
+Native Windows uses AMD's proprietary D3D12 driver compiler, not Mesa/ACO. The Windows port must transform the DXIL before pipeline creation and prove that the AMD Windows compiler emits GFX803-friendly ISA.
 
-1. A Mesa/RADV compiler patch that lowers appropriate integer operations to `v_mad_i32_i24`.
-2. A Vulkan layer that rewrites packed signed int8 dot products into a form the patched compiler can optimize.
-3. FSR4 runtime/shader variants and an OptiScaler integration.
+## Compiler probe
 
-Windows does not use Mesa's ACO compiler. This project therefore starts by testing the **AMD DirectX 12 driver compiler** rather than pretending the Linux driver patch can be copied to Windows.
+The repository includes HLSL probes and `tools/windows/run-rga-gfx803-probe.ps1`. Install a compatible AMD Adrenalin driver and AMD Radeon GPU Analyzer, then run:
 
-AMD's Radeon GPU Analyzer (RGA) has a DirectX 12 command-line mode that can compile a compute shader for a selected ASIC and produce GCN ISA disassembly. The probe in `tools/windows/` uses that facility.
+```powershell
+.\tools\windows\run-rga-gfx803-probe.ps1 -RgaPath "C:\AMD\RGA\rga.exe"
+```
 
-## First milestone: verify the Windows compiler
-
-1. Install a compatible AMD Adrenalin driver and AMD Radeon GPU Analyzer.
-2. Run the probe script:
-
-   ```powershell
-   .\tools\windows\run-rga-gfx803-probe.ps1
-   ```
-
-3. Inspect the two output files:
-   - `intrinsic.isa`: HLSL `dot4add_i8packed` path.
-   - `expanded.isa`: explicit signed-byte extraction and multiply-accumulate path.
-4. Check whether the expanded path contains `v_mad_i32_i24`, and compare its register usage and instruction count with the intrinsic path.
-
-A result is only valid when RGA reports the requested ASIC as **GFX803**. If the installed RGA/driver combination does not support that target, the script records the failure rather than silently compiling for a different ASIC.
+Check `expanded.isa` for `v_mad_i32_i24`. A result only counts when RGA confirms `gfx803`.
 
 ## Roadmap
 
-- [x] Create a Windows port design and compiler probe.
-- [x] Add the WPF Control Center and GitHub Actions x64 packaging.
-- [x] Add a generic x64 DLL attach helper for testing a future Windows runtime.
-- [ ] Run the DirectX 12 compiler probe on a real RX 580 / GFX803 Windows system.
-- [ ] Determine whether the Windows compiler emits `v_mad_i32_i24` for the expanded path.
-- [ ] If required, build and validate a DXIL transformation that preserves signed 8-bit dot-product semantics.
-- [ ] Port the shader-rewrite, shader-set replacement and runtime profiling/tuning logic to a Windows renderer path.
-- [ ] Integrate a renderer-aware per-game FSR4 bridge; generic LoadLibrary injection is not enough.
-- [ ] Benchmark image quality, GPU time, full-frame time, and injection overhead against the Linux reference.
-- [ ] Package a reversible Windows FSR4 runtime only after the shader and renderer paths are proven.
+- [x] Windows WPF Control Center with GitHub Actions self-contained build.
+- [x] ReShade D3D12 pipeline interception add-on.
+- [x] Per-game bridge installation, shader dumping and reversible removal.
+- [x] DXIL override loading by original FSR4 shader hash.
+- [ ] Run the RGA probe on a real RX 580 / GFX803 Windows machine.
+- [ ] Build a semantics-preserving DXIL transformation for signed packed-int8 dot products.
+- [ ] Prove AMD's Windows driver compiles the rewritten form to `v_mad_i32_i24` (or another equally efficient GFX803 sequence).
+- [ ] Produce GFX803-tuned DXIL replacements for the FSR4 network passes and validate their output.
+- [ ] Add actual GFX803 quality/speed tiers, shader autotuning and GPU-time profiling to the Windows bridge.
+- [ ] Benchmark on RX 580 and compare image quality, upscaler time, frametime and bridge overhead.
 
-## Important limits
+## Important limitations
 
-- **No performance guarantee yet.** No Windows RX 580 benchmark has been run by this repository.
-- **No driver patch is included.** The initial design avoids replacing or patching the system AMD driver.
-- **No Windows FSR4 runtime is included.** A game must expose a compatible temporal-upscaler interface and the Windows project must implement its shader/pipeline interception path.
-- **DXIL `IMad` is not the same thing as GFX `v_mad_i32_i24`.** DXIL expresses 32-bit signed multiply-add semantics. The AMD backend may or may not lower a particular expression to the 24-bit GCN instruction.
-- **RGA support varies by version and OS.** Recent RGA releases list Windows 11 as their supported Windows environment. The probe requires a DX12-capable RGA build, its DX12 compiler dependencies, and the AMD driver/compiler.
+- No GFX803-validated DXIL shader pack is currently bundled.
+- Generic DLL attachment does not accelerate FSR4.
+- The existing `stock`, `bc250`, `hybrid`, `lossless`, `quality`, `balanced` and `speed` profile names are stored in JSON but are not yet connected to GFX803 DXIL shader variants.
+- The Linux RADV patch and SPIR-V layer cannot be loaded into a native Windows game.
+- No Windows RX 580 performance claims are made until the shader transformation and output are validated.
 
 ## References
 
 - [Original FSR4 GFX803 implementation](https://github.com/Schaka/fsr4-gfx803)
 - [Active GFX803 fork](https://github.com/Mrx123u/fsr4-gfx803)
+- [Windows DXIL/ReShade shader replacement project](https://github.com/zgauthier2000/fsr4-shader-performance-overrides/tree/main/windows)
+- [ReShade](https://github.com/crosire/reshade)
 - [AMD Radeon GPU Analyzer](https://github.com/GPUOpen-Tools/radeon_gpu_analyzer)
-- [AMD RGA DirectX 12 compute workflow](https://gpuopen.com/news/radeon-gpu-analyzer-2-2-direct3d12-compute/)
-- [DirectX Shader Compiler — DXIL specification](https://github.com/microsoft/DirectXShaderCompiler/blob/main/docs/DXIL.rst)
-- [HLSL Shader Model 6.4 dot4add intrinsics](https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/hlsl-shader-model-6-4-features-for-direct3d-12)
+- [DXIL specification](https://github.com/microsoft/DirectXShaderCompiler/blob/main/docs/DXIL.rst)
 
-## Safety
-
-Use this only with offline/single-player games while testing DLL or pipeline interception. Do not inject into anti-cheat-protected multiplayer games.
