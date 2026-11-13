@@ -26,6 +26,9 @@
 
 .PARAMETER AssemblerPath
     Path to dxilasm-win.exe built by this repository.
+
+.PARAMETER TransformerPath
+    Path to dxil-dot4-rewrite.exe built by this repository.
 #>
 [CmdletBinding()]
 param(
@@ -33,26 +36,23 @@ param(
     [Parameter(Mandatory=$true)][string]$OutputDirectory,
     [Parameter(Mandatory=$true)][string]$DxcPath,
     [Parameter(Mandatory=$true)][string]$DxCompilerPath,
-    [Parameter(Mandatory=$true)][string]$AssemblerPath
+    [Parameter(Mandatory=$true)][string]$AssemblerPath,
+    [Parameter(Mandatory=$true)][string]$TransformerPath
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-foreach ($path in @($InputDirectory, $DxcPath, $DxCompilerPath, $AssemblerPath)) {
+foreach ($path in @($InputDirectory, $DxcPath, $DxCompilerPath, $AssemblerPath, $TransformerPath)) {
     if (-not (Test-Path -LiteralPath $path)) { throw "Required path not found: $path" }
 }
 $InputDirectory = (Resolve-Path -LiteralPath $InputDirectory).Path
 $DxcPath = (Resolve-Path -LiteralPath $DxcPath).Path
 $DxCompilerPath = (Resolve-Path -LiteralPath $DxCompilerPath).Path
 $AssemblerPath = (Resolve-Path -LiteralPath $AssemblerPath).Path
+$TransformerPath = (Resolve-Path -LiteralPath $TransformerPath).Path
 $OutputDirectory = [System.IO.Path]::GetFullPath($OutputDirectory)
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
-
-$transformer = Join-Path $PSScriptRoot "dxil/expand_dot4_gfx803.py"
-if (-not (Test-Path -LiteralPath $transformer)) { throw "DXIL transformer not found: $transformer" }
-$python = Get-Command "python.exe" -ErrorAction SilentlyContinue
-if ($null -eq $python) { throw "python.exe is required to run the DXIL IR transformer." }
 
 $files = Get-ChildItem -LiteralPath $InputDirectory -Filter "*.dxil" -File
 if ($files.Count -eq 0) { throw "No .dxil shader dumps found in $InputDirectory" }
@@ -83,7 +83,7 @@ foreach ($file in $files) {
         }
         [System.IO.File]::WriteAllText($llIn, $dumpText, [System.Text.UTF8Encoding]::new($false))
 
-        & $python.Source $transformer $llIn $llOut
+        & $TransformerPath $llIn $llOut
         $transformExit = $LASTEXITCODE
         if ($transformExit -eq 2) {
             Write-Host "No packed int8 dot products: $($file.Name)"
