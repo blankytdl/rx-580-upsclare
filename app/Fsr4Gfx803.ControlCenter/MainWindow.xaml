@@ -47,6 +47,7 @@
                     <TextBlock Text="WORKSPACE" Foreground="#6F8098" FontSize="10" FontWeight="Bold" Margin="12,0,0,12"/>
                     <Button x:Name="DashboardNav" Content="Overview" HorizontalContentAlignment="Left" Click="DashboardNav_Click" Background="#28264C" BorderBrush="#4B438F" Margin="0,0,0,6"/>
                     <Button x:Name="InjectNav" Content="Process attach" HorizontalContentAlignment="Left" Click="InjectNav_Click" Margin="0,0,0,6"/>
+                    <Button x:Name="BridgeNav" Content="Game bridge" HorizontalContentAlignment="Left" Click="BridgeNav_Click" Margin="0,0,0,6"/>
                     <Button x:Name="ProfileNav" Content="Optimization profile" HorizontalContentAlignment="Left" Click="ProfileNav_Click" Margin="0,0,0,6"/>
                     <Button x:Name="DiagnosticsNav" Content="Diagnostics" HorizontalContentAlignment="Left" Click="DiagnosticsNav_Click"/>
                     <Border Height="1" Background="#253449" Margin="8,22,8,18"/>
@@ -149,6 +150,56 @@
                         </Border>
                         <Border Background="#182538" CornerRadius="10" Padding="14" Margin="0,14,0,0">
                             <TextBlock Text="FSR4 runtime status: not available in this Windows build. The original Linux .so layer and patched RADV driver cannot be injected into a native Windows game." TextWrapping="Wrap" Foreground="#C7D2E2" FontSize="12"/>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+
+
+                <ScrollViewer x:Name="BridgePage" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="Per-game ReShade bridge" FontSize="25" FontWeight="Bold"/>
+                        <TextBlock Text="Install the DXIL pipeline add-on into ReShade's add-on search folder. It loads when the game starts, before FSR4 builds its compute pipelines." Foreground="{StaticResource MutedBrush}" Margin="0,5,0,18" TextWrapping="Wrap"/>
+                        <Border Background="#2D241C" BorderBrush="#6D4D2F" BorderThickness="1" CornerRadius="12" Padding="15" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Text="Requirements and limits" FontWeight="Bold" Foreground="#FFD3A3" FontSize="14"/>
+                                <TextBlock Text="Install ReShade with FULL add-on support first. Standard ReShade builds with limited add-on support will not load this bridge. This is a startup pipeline add-on, not a late attachment: close and restart the game after install. It can dump FSR4 shader DXIL and replace shaders when matching .dxil files are present. No GFX803-validated replacement pack is bundled yet." Foreground="#E8D5C1" TextWrapping="Wrap" FontSize="12" Margin="0,7,0,0" LineHeight="20"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrushSoft}" BorderThickness="1" CornerRadius="12" Padding="18">
+                            <StackPanel>
+                                <TextBlock Text="1. Select the game" FontWeight="Bold" FontSize="15" Margin="0,0,0,9"/>
+                                <DockPanel Margin="0,0,0,14">
+                                    <Button Content="Browse game EXE…" DockPanel.Dock="Right" Click="BrowseGameExe_Click" Margin="8,0,0,0"/>
+                                    <TextBox x:Name="GameExeText" VerticalContentAlignment="Center" ToolTip="Path to the game's executable"/>
+                                </DockPanel>
+
+                                <TextBlock Text="2. ReShade add-on search directory" FontWeight="Bold" FontSize="15" Margin="0,0,0,9"/>
+                                <DockPanel Margin="0,0,0,14">
+                                    <Button Content="Browse folder…" DockPanel.Dock="Right" Click="BrowseAddonDirectory_Click" Margin="8,0,0,0"/>
+                                    <TextBox x:Name="AddonDirectoryText" VerticalContentAlignment="Center" ToolTip="Defaults to the ReShade AddonPath from ReShade.ini, or the game folder"/>
+                                </DockPanel>
+
+                                <TextBlock Text="3. DXIL override pack directory" FontWeight="Bold" FontSize="15" Margin="0,0,0,7"/>
+                                <DockPanel Margin="0,0,0,5">
+                                    <Button Content="Browse folder…" DockPanel.Dock="Right" Click="BrowseOverrideDirectory_Click" Margin="8,0,0,0"/>
+                                    <TextBox x:Name="OverrideDirectoryText" VerticalContentAlignment="Center" ToolTip="Folder containing hash-named .dxil replacements; leave at default to use the game add-on folder"/>
+                                </DockPanel>
+                                <TextBlock Text="Place files named as the 32-character DXBC container hash plus .dxil in this folder. The bridge ignores non-DXIL files and, by default, only matches FSR4 model shaders." Foreground="{StaticResource MutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,12"/>
+
+                                <CheckBox x:Name="DumpShadersCheck" Content="Dump FSR4 DXIL shaders for building missing replacements" IsChecked="True"/>
+                                <CheckBox x:Name="VerboseBridgeLogCheck" Content="Verbose ReShade log (matched and unmatched FSR4 shader hashes)"/>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                                    <Button Content="Install bridge for this game" Background="#5E55C4" BorderBrush="#8178EB" Click="InstallBridge_Click"/>
+                                    <Button Content="Remove bridge / restore backups" Click="RemoveBridge_Click"/>
+                                    <Button Content="Open shader dump folder" Click="OpenShaderDumpFolder_Click"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrushSoft}" BorderThickness="1" CornerRadius="10" Padding="14" Margin="0,14,0,0">
+                            <TextBlock x:Name="BridgeStatusText" Text="No per-game bridge installation checked yet." Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" FontSize="12"/>
                         </Border>
                     </StackPanel>
                 </ScrollViewer>
