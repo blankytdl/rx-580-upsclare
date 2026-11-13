@@ -67,7 +67,6 @@ jobs:
         run: |
           python tools/windows/dxil/expand_dot4_gfx803.py --self-test
           python -m unittest discover -s tests -p "test_*.py"
-          & $env:DXC_EXE -version
           & tools/windows/dxil/tests/run-dxil-transform-selftest.ps1 -DxcPath $env:DXC_EXE -DxCompilerPath $env:DXC_DLL -AssemblerPath artifacts/tools/dxilasm-win.exe
 
       - name: Build ReShade DXIL bridge add-on
