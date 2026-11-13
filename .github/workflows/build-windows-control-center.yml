@@ -29,6 +29,47 @@ jobs:
         with:
           arch: x64
 
+      - name: Download pinned DirectX Shader Compiler toolchain
+        shell: pwsh
+        run: |
+          $archive = "deps/dxc_2026_09_29.zip"
+          New-Item -ItemType Directory -Force deps/dxc | Out-Null
+          Invoke-WebRequest -Uri "https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.9.2609/dxc_2026_09_29.zip" -OutFile $archive
+          $expected = "ad31b1fc8443175d204f77a611fdb3ef2ec42759bdc2f1167368de24a4a7e7f1"
+          $actual = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $expected) { throw "DXC archive SHA-256 mismatch: $actual" }
+          Expand-Archive -LiteralPath $archive -DestinationPath deps/dxc -Force
+          $dxc = Get-ChildItem deps/dxc -Filter dxc.exe -Recurse | Select-Object -First 1
+          $compiler = Get-ChildItem deps/dxc -Filter dxcompiler.dll -Recurse | Select-Object -First 1
+          $validator = Get-ChildItem deps/dxc -Filter dxil.dll -Recurse | Select-Object -First 1
+          $header = Get-ChildItem deps/dxc -Filter dxcapi.h -Recurse | Select-Object -First 1
+          if (!$dxc -or !$compiler -or !$validator -or !$header) { throw "The pinned DXC package is missing a required compiler, validator or header file." }
+          "DXC_EXE=$($dxc.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "DXC_DLL=$($compiler.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "DXIL_DLL=$($validator.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "DXC_INCLUDE=$($header.Directory.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Invoke-WebRequest -Uri "https://raw.githubusercontent.com/microsoft/DirectXShaderCompiler/v1.9.2609/LICENSE.TXT" -OutFile deps/dxc/LICENSE.TXT
+
+      - name: Build Windows DXIL assembler and validator helper
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts/tools | Out-Null
+          cl.exe /nologo /std:c++17 /O2 /MT /EHsc /I"$env:DXC_INCLUDE" tools/windows/dxil/dxilasm_win.cpp /link /OUT:artifacts/tools/dxilasm-win.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Test GFX803 DXIL expansion and DXC validation
+        shell: pwsh
+        run: |
+          python tools/windows/dxil/expand_dot4_gfx803.py --self-test
+          python -m unittest discover -s tests -p "test_*.py"
+          & $env:DXC_EXE -version
+          & tools/windows/dxil/tests/run-dxil-transform-selftest.ps1 -DxcPath $env:DXC_EXE -DxCompilerPath $env:DXC_DLL -AssemblerPath artifacts/tools/dxilasm-win.exe
+
       - name: Build ReShade DXIL bridge add-on
         shell: pwsh
         run: |
@@ -52,6 +93,12 @@ jobs:
           Copy-Item tools/windows/* artifacts/publish/tools/windows/ -Recurse -Force
           New-Item -ItemType Directory -Force artifacts/publish/addons | Out-Null
           Copy-Item artifacts/addons/FSR4-GFX803.addon64 artifacts/publish/addons/FSR4-GFX803.addon64 -Force
+          New-Item -ItemType Directory -Force artifacts/publish/tools/dxc | Out-Null
+          Copy-Item $env:DXC_EXE artifacts/publish/tools/dxc/dxc.exe -Force
+          Copy-Item $env:DXC_DLL artifacts/publish/tools/dxc/dxcompiler.dll -Force
+          Copy-Item $env:DXIL_DLL artifacts/publish/tools/dxc/dxil.dll -Force
+          Copy-Item artifacts/tools/dxilasm-win.exe artifacts/publish/tools/dxc/dxilasm-win.exe -Force
+          Copy-Item deps/dxc/LICENSE.TXT artifacts/publish/tools/dxc/LICENSE.TXT -Force
           Set-Content artifacts/publish/BUILD.txt "FSR4 GFX803 Control Center | Windows x64 | .NET 8 self-contained | $env:GITHUB_SHA"
 
       - name: Create portable ZIP
