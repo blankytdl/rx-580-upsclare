@@ -16,6 +16,26 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v4
 
+      - name: Check out ReShade add-on headers
+        uses: actions/checkout@v4
+        with:
+          repository: crosire/reshade
+          ref: main
+          path: deps/reshade
+          persist-credentials: false
+
+      - name: Set up MSVC toolchain
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Build ReShade DXIL bridge add-on
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts/addons | Out-Null
+          cl.exe /nologo /std:c++20 /O2 /MT /EHsc /LD /DWIN32_LEAN_AND_MEAN /DNOMINMAX /Ideps/reshade/include addons/src/fsr4_gfx803_addon.cpp /link /OUT:artifacts/addons/FSR4-GFX803.addon64 Psapi.lib
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Set up .NET 8
         uses: actions/setup-dotnet@v4
         with:
@@ -30,6 +50,8 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force artifacts/publish/tools/windows | Out-Null
           Copy-Item tools/windows/* artifacts/publish/tools/windows/ -Recurse -Force
+          New-Item -ItemType Directory -Force artifacts/publish/addons | Out-Null
+          Copy-Item artifacts/addons/FSR4-GFX803.addon64 artifacts/publish/addons/FSR4-GFX803.addon64 -Force
           Set-Content artifacts/publish/BUILD.txt "FSR4 GFX803 Control Center | Windows x64 | .NET 8 self-contained | $env:GITHUB_SHA"
 
       - name: Create portable ZIP
