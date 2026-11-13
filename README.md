@@ -1,12 +1,12 @@
 # RX 580 FSR4 Upscaler — Windows GFX803 port
 
-A Windows-first research and development project for bringing the FSR4 GFX803/Polaris shader optimizations to the Radeon RX 580.
+A Windows-first research and development project for bringing the FSR4 GFX803/Polaris shader optimizations to the Radeon RX 580. GitHub Actions creates one portable ZIP with the Control Center, ReShade bridge add-on, DXIL tools, DXC compiler/validator and setup helpers. The Control Center can fetch the official ReShade full add-on installer on demand.
 
 > **Status: Windows bridge + compiler research preview.** The repository now builds a Windows Control Center and a ReShade D3D12 add-on. The add-on can be installed per game, dump FSR4 compute shaders, and load user-provided hash-matched DXIL replacements before pipelines are created. **A validated GFX803-specific DXIL replacement pack is not included yet**, so this is not yet equivalent to the full Linux GFX803 implementation.
 
 ## Windows Control Center
 
-The WPF app lives in `app/Fsr4Gfx803.ControlCenter/`. GitHub Actions builds a self-contained x64 EXE and portable ZIP.
+The WPF app lives in `app/Fsr4Gfx803.ControlCenter/`. GitHub Actions builds a self-contained x64 EXE and portable ZIP. The bridge page includes a one-click helper that downloads ReShade 6.8.0 with full add-on support from the official ReShade website; ReShade itself is not redistributed. AMD Radeon GPU Analyzer is optional and is only needed for the ISA diagnostic probe.
 
 - Overview and diagnostics, including the AMD RGA GFX803 ISA probe.
 - Running-process inspection and a generic x64 DLL loader for diagnostics (not the FSR4 rendering path).
