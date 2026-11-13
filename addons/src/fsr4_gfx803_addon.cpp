@@ -18,6 +18,7 @@
 #include <atomic>
 #include <cstdint>
 #include <cstdio>
+#include <cctype>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -126,7 +127,7 @@ namespace
 
         Log(reshade::log::level::info,
             "FSR4 GFX803: " + std::string(g_enabled ? "enabled" : "disabled") +
-            ", overrides='" + g_override_directory.u8string() +
+            ", overrides='" + g_override_directory.string() +
             "', dump=" + (g_dump_shaders ? "on" : "off") +
             ", FSR4-only=" + (g_only_fsr4 ? "on" : "off"));
     }
@@ -182,7 +183,7 @@ namespace
         std::ofstream file(path, std::ios::binary | std::ios::out);
         if (!file)
         {
-            Log(reshade::log::level::warning, "FSR4 GFX803: could not write shader dump " + path.u8string());
+            Log(reshade::log::level::warning, "FSR4 GFX803: could not write shader dump " + path.string());
             return;
         }
         file.write(static_cast<const char *>(code), static_cast<std::streamsize>(size));
