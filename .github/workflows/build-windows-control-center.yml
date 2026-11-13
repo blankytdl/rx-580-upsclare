@@ -57,11 +57,6 @@ jobs:
           cl.exe /nologo /std:c++17 /O2 /MT /EHsc /I"$env:DXC_INCLUDE" tools/windows/dxil/dxilasm_win.cpp /link /OUT:artifacts/tools/dxilasm-win.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
       - name: Test GFX803 DXIL expansion and DXC validation
         shell: pwsh
         run: |
@@ -97,8 +92,18 @@ jobs:
           Copy-Item $env:DXC_DLL artifacts/publish/tools/dxc/dxcompiler.dll -Force
           Copy-Item $env:DXIL_DLL artifacts/publish/tools/dxc/dxil.dll -Force
           Copy-Item artifacts/tools/dxilasm-win.exe artifacts/publish/tools/dxc/dxilasm-win.exe -Force
+          Copy-Item artifacts/tools/dxil-dot4-rewrite.exe artifacts/publish/tools/dxc/dxil-dot4-rewrite.exe -Force
           Copy-Item deps/dxc/LICENSE.TXT artifacts/publish/tools/dxc/LICENSE.TXT -Force
           Set-Content artifacts/publish/BUILD.txt "FSR4 GFX803 Control Center | Windows x64 | .NET 8 self-contained | $env:GITHUB_SHA"
+
+      - name: Upload DXIL self-test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: FSR4-GFX803-DXIL-selftest
+          path: artifacts/dxil-selftest/
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Create portable ZIP
         shell: pwsh
