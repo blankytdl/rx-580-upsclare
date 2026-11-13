@@ -1,42 +1,40 @@
 # FSR4 GFX803 Control Center
 
-A Windows x64 WPF control app built as a self-contained single-file executable by GitHub Actions.
+A self-contained Windows x64 WPF app. GitHub Actions builds the EXE and portable ZIP; no separately installed .NET runtime is needed.
 
 ## Build
 
-The workflow .github/workflows/build-windows-control-center.yml runs on pushes to the app, diagnostic tools, and workflow, and can also be started manually from the Actions tab.
+Run **Actions → Build Windows Control Center**, or push a change to `app/**`, `addons/**`, `tools/windows/**` or the workflow itself.
 
-Download the FSR4-GFX803-ControlCenter-win-x64 artifact and extract the ZIP. Run:
+The build also compiles `addons/src/fsr4_gfx803_addon.cpp` against the ReShade add-on API and includes `addons/FSR4-GFX803.addon64` in the portable ZIP.
 
-**FSR4-GFX803-ControlCenter.exe**
+## Included UI
 
-The ZIP contains the EXE and tools/windows/ so the RGA probe button can find its PowerShell script. The application does not require a separately installed .NET runtime.
+- **Overview:** GPU target, runtime status and feature overview.
+- **Process attach:** generic x64 DLL loader for diagnostics only; it is not the FSR4 rendering hook.
+- **Game bridge:** select a game executable, detect ReShade's add-on directory, install/remove the ReShade DXIL bridge, configure shader dumping and select an external DXIL override folder.
+- **Optimization profile:** save/export upstream-style DLL variants, tiers, shader-set paths, autotuning and profiler settings. Options that the Windows bridge does not yet implement are saved as profile data only.
+- **Diagnostics:** run AMD Radeon GPU Analyzer against the GFX803 HLSL probe and inspect output logs.
 
-## Current functions
+## Using the actual Windows rendering hook
 
-- Enumerate running Windows processes and display PID/window title.
-- Load a user-selected x64 DLL into a selected native x64 process using Windows LoadLibraryW through a remote thread.
-- Save and export a profile using the upstream names for DLL variants, tiers, shader-set selection, autotune, GPU profiling, debug output, SPIR-V dumping, SDot expansion, and cache directories.
-- Run the existing AMD RGA GFX803 DX12 ISA probe and open its output/log folders.
+1. Install ReShade into the target game using a build with **full add-on support**. The ReShade installer has a build selection for add-on support.
+2. Open this app's **Game bridge** page and choose the game's EXE.
+3. Confirm the detected ReShade add-on search path, optionally choose a folder of hash-named `.dxil` replacement shaders, and enable shader dumping.
+4. Press **Install bridge for this game**.
+5. Close the game completely and start it again. ReShade loads the add-on when the process starts, before FSR4 creates its compute pipelines.
+6. Select **Open shader dump folder** after the game has run FSR4. The add-on writes FSR4 shader containers as `<32-hex-character-hash>.dxil`.
+7. A shader pack is only used when a replacement has the exact original container hash.
 
-DLL attachment is generic. Only use trusted DLLs and offline/single-player games. This app does not bypass anti-cheat, protected-process restrictions, or integrity checks. A successful attach means Windows loaded the module; it does not mean the module can hook the game's renderer.
+To uninstall, use **Remove bridge / restore backups**. The installer stores a manifest and verifies file hashes before removing anything; modified files are preserved instead of being overwritten.
 
-## Important runtime limitation
+## What this does not do yet
 
-This is **not yet a Windows FSR4 implementation**. The upstream fsr4-gfx803 engine requires a patched Mesa/RADV driver, a Vulkan layer which rewrites SPIR-V OpSDot operations and substitutes tuned shader sets, and a compatible FSR4 upscaler DLL. Its launcher configures these before game startup. A native Windows game does not use the Linux RADV compiler or its patched ACO backend.
+The bridge is derived from the Windows ReShade DXIL replacement approach documented by [fsr4-shader-performance-overrides](https://github.com/zgauthier2000/fsr4-shader-performance-overrides/tree/main/windows). It is a native Windows D3D12 shader-pipeline interception mechanism.
 
-The profile page preserves the upstream options for porting work, but currently they are saved as JSON only. They are not applied to a game by this build. The Windows shader runtime must be ported and validated before those options can affect frame rendering. Do not inject the original Linux .so layer into a Windows game.
+It is **not yet a complete GFX803 port**. There is no RX 580-validated DXIL replacement pack, no DXIL signed-dot expansion for GFX803, and no proof yet that AMD's Windows driver emits `v_mad_i32_i24` for the transformed shaders. The bridge can dump input shaders and load replacements, but without a compatible replacement pack it does not make FSR4 faster.
 
-## Profile options represented
+The RDNA2/RDNA3 replacements from other projects should not be assumed to work or be optimal on GFX803. Do not use a replacement pack unless it is built for the exact FSR4 DLL version and has been validated on your GPU.
 
-- DLL variants: stock, bc250, hybrid
-- Tiers: lossless, quality, balanced, speed, off, none
-- Direct shader-set name override
-- Shader autotuning
-- Per-dispatch GPU profiling
-- Shader replacement/debug logging
-- SPIR-V module dumping
-- Signed dot-product expansion
-- Shader-set and cache paths
+Use only trusted ReShade add-ons and offline/single-player games. Modified shader pipelines and add-ons may be disallowed by anti-cheat systems. This app does not attempt to bypass anti-cheat.
 
-These options correspond to upstream concepts; the Windows bridge still needs to implement them.
