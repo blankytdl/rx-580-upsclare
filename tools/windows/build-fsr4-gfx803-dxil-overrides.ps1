@@ -49,7 +49,7 @@ $AssemblerPath = (Resolve-Path -LiteralPath $AssemblerPath).Path
 $OutputDirectory = [System.IO.Path]::GetFullPath($OutputDirectory)
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 
-$transformer = Join-Path $PSScriptRoot "expand_dot4_gfx803.py"
+$transformer = Join-Path $PSScriptRoot "dxil/expand_dot4_gfx803.py"
 if (-not (Test-Path -LiteralPath $transformer)) { throw "DXIL transformer not found: $transformer" }
 $python = Get-Command "python.exe" -ErrorAction SilentlyContinue
 if ($null -eq $python) { throw "python.exe is required to run the DXIL IR transformer." }
