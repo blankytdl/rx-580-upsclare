@@ -57,12 +57,17 @@ jobs:
           cl.exe /nologo /std:c++17 /O2 /MT /EHsc /I"$env:DXC_INCLUDE" tools/windows/dxil/dxilasm_win.cpp /link /OUT:artifacts/tools/dxilasm-win.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Build native DXIL dot4 transformer
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts/tools | Out-Null
+          cl.exe /nologo /std:c++17 /O2 /MT /EHsc tools/windows/dxil/dxil-dot4-rewrite.cpp /link /OUT:artifacts/tools/dxil-dot4-rewrite.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Test GFX803 DXIL expansion and DXC validation
         shell: pwsh
         run: |
-          python tools/windows/dxil/expand_dot4_gfx803.py --self-test
-          python -m unittest discover -s tests -p "test_*.py"
-          & tools/windows/dxil/tests/run-dxil-transform-selftest.ps1 -DxcPath $env:DXC_EXE -DxCompilerPath $env:DXC_DLL -AssemblerPath artifacts/tools/dxilasm-win.exe
+          & tools/windows/dxil/tests/run-dxil-transform-selftest.ps1 -DxcPath $env:DXC_EXE -DxCompilerPath $env:DXC_DLL -AssemblerPath artifacts/tools/dxilasm-win.exe -TransformerPath artifacts/tools/dxil-dot4-rewrite.exe -WorkDirectory artifacts/dxil-selftest
 
       - name: Build ReShade DXIL bridge add-on
         shell: pwsh
