@@ -1,0 +1,8 @@
+# Generated RGA shader outputs and compiler logs
+/artifacts/
+/tools/windows/artifacts/
+*.isa
+*.rga.log
+*.dxil
+*.dxbc
+*.cso
