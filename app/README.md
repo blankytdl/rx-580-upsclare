@@ -1,6 +1,6 @@
 # FSR4 GFX803 Control Center
 
-A self-contained Windows x64 WPF app. GitHub Actions builds the EXE and portable ZIP; no separately installed .NET runtime is needed.
+A self-contained Windows x64 WPF app. GitHub Actions builds one portable ZIP containing the EXE, native bridge, DXIL tools, DXC compiler/validator and setup helpers; no separately installed .NET runtime is needed. The Game bridge page can download and launch ReShade 6.8.0 with full add-on support from the official ReShade site.
 
 ## Build
 
@@ -18,7 +18,7 @@ The build compiles `addons/src/fsr4_gfx803_addon.cpp` against the ReShade add-on
 
 ## Using the actual Windows rendering hook
 
-1. Install ReShade into the target game using a build with **full add-on support**. The ReShade installer has a build selection for add-on support.
+1. On **Game bridge**, click **Download ReShade 6.8.0 (full add-on support)**. The bundled helper downloads the official installer from reshade.me and launches it. ReShade's site says not to redistribute its binaries, so the installer itself is intentionally fetched from the official source rather than copied into this ZIP. In the installer, select the game's EXE and DirectX 12.
 2. Open this app's **Game bridge** page and choose the game's EXE.
 3. Confirm the detected ReShade add-on search path, optionally choose a folder of hash-named `.dxil` replacement shaders, and enable shader dumping.
 4. Press **Install bridge for this game**.
@@ -28,6 +28,8 @@ The build compiles `addons/src/fsr4_gfx803_addon.cpp` against the ReShade add-on
 8. After closing the game, press **Build GFX803 DXIL replacements from dumps**. The app expands packed signed-int8 dot products, assembles and validates each result with DXC, and places replacements in the configured folder. Restart the game to test them. This is experimental; check the emitted ISA with Radeon GPU Analyzer and validate image quality and timings before using it for regular play.
 
 To uninstall, use **Remove bridge / restore backups**. The installer stores a manifest and verifies file hashes before removing anything; modified files are preserved instead of being overwritten.
+
+The DXIL tooling and compiler are already inside the ZIP. AMD Radeon GPU Analyzer is optional and only needed for the separate ISA diagnostics; it is not required to install the bridge or use the packaged DXIL transformation helper. Its supported Windows release currently targets Windows 11.
 
 ## What this does not do yet
 
