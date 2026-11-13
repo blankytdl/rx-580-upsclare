@@ -30,6 +30,71 @@ public partial class MainWindow : Window
         RefreshProcesses();
     }
     private void BridgeNav_Click(object sender, RoutedEventArgs e) => ShowPage("bridge");
+
+    private async void InstallReshade_Click(object sender, RoutedEventArgs e)
+    {
+        string script = Path.Combine(AppContext.BaseDirectory, "tools", "windows", "install-reshade-full-addon.ps1");
+        if (!File.Exists(script))
+        {
+            MessageBox.Show(this,
+                "The ReShade setup helper is missing from this package. Download the complete portable ZIP, not only the EXE.",
+                "Setup helper missing", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var answer = MessageBox.Show(this,
+            "This will download ReShade 6.8.0 with FULL add-on support directly from reshade.me and launch its installer.\n\n" +
+            "The full add-on build is unsigned by design. In the installer, select your game's executable and DirectX 12.\n\nContinue?",
+            "Get official ReShade add-on build", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (answer != MessageBoxResult.Yes)
+            return;
+
+        var start = new ProcessStartInfo
+        {
+            FileName = "powershell.exe",
+            WorkingDirectory = AppContext.BaseDirectory,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true
+        };
+        start.ArgumentList.Add("-NoLogo");
+        start.ArgumentList.Add("-NoProfile");
+        start.ArgumentList.Add("-ExecutionPolicy");
+        start.ArgumentList.Add("Bypass");
+        start.ArgumentList.Add("-File");
+        start.ArgumentList.Add(script);
+
+        AppendLog("Downloading the official ReShade full add-on installer from reshade.me...");
+        try
+        {
+            using var process = Process.Start(start) ?? throw new InvalidOperationException("PowerShell could not be started.");
+            Task<string> stdout = process.StandardOutput.ReadToEndAsync();
+            Task<string> stderr = process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync();
+            string output = await stdout;
+            string errors = await stderr;
+            if (!string.IsNullOrWhiteSpace(output)) AppendLog(output.TrimEnd());
+            if (!string.IsNullOrWhiteSpace(errors)) AppendLog(errors.TrimEnd());
+
+            if (process.ExitCode == 0)
+            {
+                AppendLog("ReShade setup helper completed.");
+                MessageBox.Show(this,
+                    "ReShade setup has finished. If you completed installation, return here, select the game's EXE, and install the FSR4 bridge.",
+                    "ReShade setup finished", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
+            {
+                throw new InvalidOperationException("ReShade download/setup helper exited with code " + process.ExitCode + ".");
+            }
+        }
+        catch (Exception ex)
+        {
+            AppendLog("ReShade setup failed: " + ex.Message);
+            MessageBox.Show(this, ex.Message, "ReShade setup failed", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
     private void ProfileNav_Click(object sender, RoutedEventArgs e) => ShowPage("profile");
     private void DiagnosticsNav_Click(object sender, RoutedEventArgs e) => ShowPage("diagnostics");
 
