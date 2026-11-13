@@ -20,7 +20,7 @@ public partial class MainWindow : Window
         LoadProfileIntoUi(ProfileStore.Load());
         RefreshProcesses();
         AppendLog("Control Center started.");
-        AppendLog("Notice: generic DLL loading is implemented; the Windows FSR4 shader runtime is not.");
+        AppendLog("ReShade D3D12 bridge and experimental DXIL dot4 transformer are included; GFX803 ISA and image output still require RX 580 validation.");
     }
 
     private void DashboardNav_Click(object sender, RoutedEventArgs e) => ShowPage("dashboard");
