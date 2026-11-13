@@ -94,7 +94,7 @@ jobs:
           Copy-Item artifacts/addons/FSR4-GFX803.addon64 artifacts/publish/addons/FSR4-GFX803.addon64 -Force
           Copy-Item addons/src/fsr4_gfx803_addon.cpp artifacts/publish/addons/src/fsr4_gfx803_addon.cpp -Force
           Copy-Item addons/LICENSE artifacts/publish/addons/LICENSE -Force
-          Copy-Item LICENSE artifacts/publish/LICENSE -Force
+          Copy-Item addons/LICENSE artifacts/publish/LICENSE -Force
           Copy-Item THIRD_PARTY_NOTICES.md artifacts/publish/THIRD_PARTY_NOTICES.md -Force
           New-Item -ItemType Directory -Force artifacts/publish/tools/dxc | Out-Null
           Copy-Item $env:DXC_EXE artifacts/publish/tools/dxc/dxc.exe -Force
