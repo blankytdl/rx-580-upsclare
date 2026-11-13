@@ -85,7 +85,9 @@ def expand_text(text: str) -> tuple[str, int]:
     return "\n".join(lines_out) + ("\n" if text.endswith("\n") else ""), count
 
 def self_test() -> None:
-    sample = """define i32 @probe(i32 %acc, i32 %a, i32 %b) {
+    sample = """declare i32 @dx.op.dot4AddPacked.i32(i32, i32, i32, i32)
+
+define i32 @probe(i32 %acc, i32 %a, i32 %b) {
 entry:
   %v = call i32 @dx.op.dot4AddPacked.i32(i32 163, i32 %acc, i32 %a, i32 %b)
   ret i32 %v
