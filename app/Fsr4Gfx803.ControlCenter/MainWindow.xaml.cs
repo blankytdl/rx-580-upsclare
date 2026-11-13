@@ -138,8 +138,15 @@ public partial class MainWindow : Window
         DebugCheck.IsChecked = profile.ShaderDebugLog;
         DumpSpirvCheck.IsChecked = profile.DumpSpirv;
         ExpandSdotCheck.IsChecked = profile.ExpandSignedDot;
+        ProfileEachCheck.IsChecked = profile.ProfileEachShader;
+        AutoTuneSamplesText.Text = profile.AutoTuneSamples.ToString();
+        ProfileMinBytesText.Text = profile.ProfileMinimumModuleBytes.ToString();
+        ProfileIntervalText.Text = profile.ProfileIntervalSeconds.ToString();
         ShaderSetsText.Text = profile.ShaderSetsDirectory;
+        VariantsDirectoryText.Text = profile.VariantsDirectory;
         ShaderCacheText.Text = profile.ShaderCacheDirectory;
+        DumpDirectoryText.Text = profile.DumpDirectory;
+        TuneCacheText.Text = profile.TuneCacheFile;
         DllPathText.Text = profile.RuntimeDll;
         FooterProfileName.Text = profile.Name;
         ProfileStatusText.Text = $"Loaded: {ProfileStore.ProfilePath}";
@@ -170,13 +177,27 @@ public partial class MainWindow : Window
             Tier = tier,
             CustomShaderSet = CustomSetText.Text.Trim(),
             AutoTune = AutoTuneCheck.IsChecked == true,
+            AutoTuneSamples = ParsePositiveInt(AutoTuneSamplesText.Text, 60, 10000),
             GpuProfiling = GpuProfileCheck.IsChecked == true,
+            ProfileMinimumModuleBytes = ParsePositiveInt(ProfileMinBytesText.Text, 40000, 10000000),
+            ProfileIntervalSeconds = ParsePositiveInt(ProfileIntervalText.Text, 5, 3600),
+            ProfileEachShader = ProfileEachCheck.IsChecked == true,
             ShaderDebugLog = DebugCheck.IsChecked == true,
             DumpSpirv = DumpSpirvCheck.IsChecked == true,
             ExpandSignedDot = ExpandSdotCheck.IsChecked == true,
             ShaderSetsDirectory = ShaderSetsText.Text.Trim(),
-            ShaderCacheDirectory = ShaderCacheText.Text.Trim()
+            VariantsDirectory = VariantsDirectoryText.Text.Trim(),
+            ShaderCacheDirectory = ShaderCacheText.Text.Trim(),
+            DumpDirectory = DumpDirectoryText.Text.Trim(),
+            TuneCacheFile = TuneCacheText.Text.Trim()
         };
+    }
+
+    private static int ParsePositiveInt(string value, int fallback, int maximum)
+    {
+        if (!int.TryParse(value, out int parsed) || parsed < 1)
+            return fallback;
+        return Math.Min(parsed, maximum);
     }
 
     private void SaveProfile_Click(object sender, RoutedEventArgs e)
