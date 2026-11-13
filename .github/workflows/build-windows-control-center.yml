@@ -3,14 +3,8 @@ name: Build Windows Control Center
 on:
   push:
     branches: [main]
-    paths:
-      - "app/**"
-      - "tools/windows/**"
-      - ".github/workflows/build-windows-control-center.yml"
+    tags: ["v*"]
   workflow_dispatch:
-  push:
-    tags:
-      - "v*"
 
 permissions:
   contents: write
