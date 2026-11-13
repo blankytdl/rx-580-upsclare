@@ -71,7 +71,6 @@ int main(int argc, char **argv)
     if (create == nullptr)
     {
         std::fprintf(stderr, "DxcCreateInstance export not found\n");
-        FreeLibrary(library);
         return 2;
     }
 
@@ -80,7 +79,6 @@ int main(int argc, char **argv)
     if (ir.empty())
     {
         std::fprintf(stderr, "could not read input IR: %s\n", argv[2]);
-        FreeLibrary(library);
         return 2;
     }
 
@@ -91,21 +89,18 @@ int main(int argc, char **argv)
     if (FAILED(hr))
     {
         std::fprintf(stderr, "DxcCreateInstance(IDxcUtils) failed: 0x%08X\n", static_cast<unsigned>(hr));
-        FreeLibrary(library);
         return 3;
     }
     hr = create(CLSID_DxcAssembler, __uuidof(IDxcAssembler), reinterpret_cast<void **>(assembler.put()));
     if (FAILED(hr))
     {
         std::fprintf(stderr, "DxcCreateInstance(IDxcAssembler) failed: 0x%08X\n", static_cast<unsigned>(hr));
-        FreeLibrary(library);
         return 3;
     }
     hr = create(CLSID_DxcValidator, __uuidof(IDxcValidator), reinterpret_cast<void **>(validator.put()));
     if (FAILED(hr))
     {
         std::fprintf(stderr, "DxcCreateInstance(IDxcValidator) failed: 0x%08X\n", static_cast<unsigned>(hr));
-        FreeLibrary(library);
         return 3;
     }
 
@@ -114,7 +109,6 @@ int main(int argc, char **argv)
     if (FAILED(hr))
     {
         std::fprintf(stderr, "CreateBlob failed: 0x%08X\n", static_cast<unsigned>(hr));
-        FreeLibrary(library);
         return 4;
     }
 
@@ -122,7 +116,6 @@ int main(int argc, char **argv)
     hr = assembler->AssembleToContainer(source.get(), assemble_result.put());
     if (FAILED(hr) || FAILED(ReadStatus(assemble_result.get(), "DXIL assembly")))
     {
-        FreeLibrary(library);
         return 5;
     }
 
@@ -131,7 +124,6 @@ int main(int argc, char **argv)
     if (FAILED(hr) || container.get() == nullptr)
     {
         std::fprintf(stderr, "DXIL assembler returned no container\n");
-        FreeLibrary(library);
         return 5;
     }
 
@@ -139,7 +131,6 @@ int main(int argc, char **argv)
     hr = validator->Validate(container.get(), DxcValidatorFlags_InPlaceEdit, validation_result.put());
     if (FAILED(hr) || FAILED(ReadStatus(validation_result.get(), "DXIL validation")))
     {
-        FreeLibrary(library);
         return 6;
     }
 
