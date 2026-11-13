@@ -27,6 +27,10 @@ DOT_RE = re.compile(
     r"\(i32\s+163,\s*i32\s+([^,]+),\s*i32\s+([^,]+),\s*i32\s+([^)]+)\)"
 )
 
+DOT_DECL_RE = re.compile(
+    r"^\\s*declare\\b.*@dx\\.op\\.dot4AddPacked\\.i32\\([^)]*\\).*$"
+)
+
 def _emit_extract(lines: list[str], indent: str, prefix: str, value: str, lane: int) -> str:
     shift = 24 - lane * 8
     if shift:
@@ -81,6 +85,11 @@ def expand_text(text: str) -> tuple[str, int]:
         lines_out.append(f"{indent}{sum012} = add i32 {sum01}, {products[2]}")
         lines_out.append(f"{indent}{sum0123} = add i32 {sum012}, {products[3]}")
         lines_out.append(f"{indent}{result_id} = add i32 {sum0123}, {accumulator.strip()}")
+
+    # DXIL validation rejects an unused declaration for this external intrinsic.
+    # Remove it only when all packed-dot call sites were rewritten.
+    if count and not any("@dx.op.dot4AddPacked.i32(" in line for line in lines_out):
+        lines_out = [line for line in lines_out if not DOT_DECL_RE.match(line)]
 
     return "\n".join(lines_out) + ("\n" if text.endswith("\n") else ""), count
 
