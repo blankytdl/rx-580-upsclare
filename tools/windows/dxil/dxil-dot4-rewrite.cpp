@@ -68,7 +68,13 @@ int main(int argc, char **argv)
     std::vector<std::string> original;
     std::string line;
     while (std::getline(input, line))
+    {
+        // DXC's dump is CRLF on Windows. Remove the retained carriage return so
+        // anchored declaration regexes see the actual end of the LLVM IR line.
+        if (!line.empty() && line.back() == '\r')
+            line.pop_back();
         original.push_back(line);
+    }
     if (input.bad())
     {
         std::cerr << "Failed while reading input IR: " << argv[1] << "\n";
