@@ -17,10 +17,10 @@
 namespace
 {
     const std::regex kDotPattern(
-        R"(^(s*)(%[-w.$]+)s*=s*(tails+|musttails+|notails+)?calls+i32s+@dx.op.dot4AddPacked.i32(i32s+163,s*i32s+([^,]+),s*i32s+([^,]+),s*i32s+([^)]+)))",
+        R"(^(\s*)(%[-\w.$]+)\s*=\s*(tail\s+|musttail\s+|notail\s+)?call\s+i32\s+@dx\.op\.dot4AddPacked\.i32\(i32\s+163,\s*i32\s+([^,]+),\s*i32\s+([^,]+),\s*i32\s+([^)]+)\))",
         std::regex::ECMAScript);
     const std::regex kDeclarationPattern(
-        R"(^s*declare.*@dx.op.dot4AddPacked.i32([^)]*).*$)",
+        R"(^\s*declare\b.*@dx\.op\.dot4AddPacked\.i32\([^)]*\).*$)",
         std::regex::ECMAScript);
 
     std::string Trim(const std::string &value)
