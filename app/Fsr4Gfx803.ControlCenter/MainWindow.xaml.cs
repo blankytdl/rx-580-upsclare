@@ -29,6 +29,7 @@ public partial class MainWindow : Window
         ShowPage("inject");
         RefreshProcesses();
     }
+    private void BridgeNav_Click(object sender, RoutedEventArgs e) => ShowPage("bridge");
     private void ProfileNav_Click(object sender, RoutedEventArgs e) => ShowPage("profile");
     private void DiagnosticsNav_Click(object sender, RoutedEventArgs e) => ShowPage("diagnostics");
 
@@ -36,10 +37,12 @@ public partial class MainWindow : Window
     {
         DashboardPage.Visibility = page == "dashboard" ? Visibility.Visible : Visibility.Collapsed;
         InjectPage.Visibility = page == "inject" ? Visibility.Visible : Visibility.Collapsed;
+        BridgePage.Visibility = page == "bridge" ? Visibility.Visible : Visibility.Collapsed;
         ProfilePage.Visibility = page == "profile" ? Visibility.Visible : Visibility.Collapsed;
         DiagnosticsPage.Visibility = page == "diagnostics" ? Visibility.Visible : Visibility.Collapsed;
         DashboardNav.Background = page == "dashboard" ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(40, 38, 76)) : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(38, 53, 74));
         InjectNav.Background = page == "inject" ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(40, 38, 76)) : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(38, 53, 74));
+        BridgeNav.Background = page == "bridge" ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(40, 38, 76)) : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(38, 53, 74));
         ProfileNav.Background = page == "profile" ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(40, 38, 76)) : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(38, 53, 74));
         DiagnosticsNav.Background = page == "diagnostics" ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(40, 38, 76)) : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(38, 53, 74));
     }
@@ -75,6 +78,116 @@ public partial class MainWindow : Window
     {
         try { return process.ProcessName; }
         catch { return ""; }
+    }
+
+    private void BrowseGameExe_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Select the game's executable",
+            Filter = "Windows executables (*.exe)|*.exe|All files (*.*)|*.*",
+            CheckFileExists = true
+        };
+        if (dialog.ShowDialog(this) != true)
+            return;
+
+        GameExeText.Text = dialog.FileName;
+        AddonDirectoryText.Text = ReshadeBridgeManager.GetSuggestedAddonDirectory(dialog.FileName);
+        if (string.IsNullOrWhiteSpace(OverrideDirectoryText.Text))
+            OverrideDirectoryText.Text = Path.Combine(AddonDirectoryText.Text, "fsr4-overrides");
+
+        if (ReshadeBridgeManager.IsReshadePresent(dialog.FileName, out string reason))
+            BridgeStatusText.Text = reason;
+        else
+            BridgeStatusText.Text = reason;
+    }
+
+    private void BrowseAddonDirectory_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFolderDialog { Title = "Select ReShade's add-on search directory" };
+        if (dialog.ShowDialog(this) == true)
+        {
+            AddonDirectoryText.Text = dialog.FolderName;
+            if (string.IsNullOrWhiteSpace(OverrideDirectoryText.Text))
+                OverrideDirectoryText.Text = Path.Combine(dialog.FolderName, "fsr4-overrides");
+        }
+    }
+
+    private void BrowseOverrideDirectory_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFolderDialog { Title = "Select the folder containing DXIL shader overrides" };
+        if (dialog.ShowDialog(this) == true)
+            OverrideDirectoryText.Text = dialog.FolderName;
+    }
+
+    private void InstallBridge_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var result = ReshadeBridgeManager.Install(
+                GameExeText.Text.Trim().Trim('"'),
+                AddonDirectoryText.Text.Trim().Trim('"'),
+                OverrideDirectoryText.Text.Trim().Trim('"'),
+                DumpShadersCheck.IsChecked == true,
+                VerboseBridgeLogCheck.IsChecked == true);
+            AddonDirectoryText.Text = result.AddonDirectory;
+            OverrideDirectoryText.Text = result.OverrideDirectory;
+            BridgeStatusText.Text = result.Message + Environment.NewLine +
+                "Add-on: " + Path.Combine(result.AddonDirectory, "FSR4-GFX803.addon64") +
+                Environment.NewLine + "Config: " + result.ConfigPath;
+            AppendLog("ReShade bridge installed for " + GameExeText.Text);
+            MessageBox.Show(this, result.Message, "ReShade bridge installed",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            BridgeStatusText.Text = ex.Message;
+            AppendLog("Bridge installation failed: " + ex.Message);
+            MessageBox.Show(this, ex.Message, "Bridge installation failed",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void RemoveBridge_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            string directory = AddonDirectoryText.Text.Trim().Trim('"');
+            var result = ReshadeBridgeManager.RemoveAndRestore(directory);
+            BridgeStatusText.Text = result.Message;
+            AppendLog("ReShade bridge removal: " + result.Message);
+            MessageBox.Show(this, result.Message, "ReShade bridge removal",
+                MessageBoxButton.OK, result.RemovedAddon && result.RemovedConfig ? MessageBoxImage.Information : MessageBoxImage.Warning);
+        }
+        catch (Exception ex)
+        {
+            BridgeStatusText.Text = ex.Message;
+            AppendLog("Bridge removal failed: " + ex.Message);
+            MessageBox.Show(this, ex.Message, "Bridge removal failed",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void OpenShaderDumpFolder_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            string addonDirectory = AddonDirectoryText.Text.Trim().Trim('"');
+            if (string.IsNullOrWhiteSpace(addonDirectory))
+                throw new InvalidOperationException("Select a game executable or ReShade add-on directory first.");
+            string dump = Path.Combine(addonDirectory, "fsr4-overrides", "dump");
+            Directory.CreateDirectory(dump);
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "explorer.exe",
+                UseShellExecute = true,
+                ArgumentList = { dump }
+            });
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "Cannot open shader dump folder", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
     private void BrowseDll_Click(object sender, RoutedEventArgs e)
