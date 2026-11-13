@@ -1,3 +1,15 @@
+## ReShade full add-on setup helper
+
+The portable ZIP includes `install-reshade-full-addon.ps1`. The Control Center's **Game bridge** page runs it when you click **Download ReShade 6.8.0 (full add-on support)**. It downloads the version-pinned installer from the official ReShade URL and launches it. ReShade's own website asks users not to redistribute its binaries, so the installer is deliberately fetched from the publisher at setup time.
+
+Manual use:
+
+```powershell
+.\tools\windows\install-reshade-full-addon.ps1
+```
+
+This step requires an internet connection. The DXC compiler, validator and DXIL tools required by the bridge are bundled in the ZIP; ReShade is the only required external runtime downloaded on demand. AMD Radeon GPU Analyzer remains optional for the ISA diagnostic probe.
+
 # Windows tooling
 
 ## RGA GFX803 compiler probe
