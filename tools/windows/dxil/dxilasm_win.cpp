@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// DXIL assembler/validator for Windows. A small LoadLibraryW-based port of the helper
-// in zgauthier2000/fsr4-shader-performance-overrides/windows/tools/dxilasm.cpp.
+// DXIL assembler/validator for Windows.
 // Usage: dxilasm-win.exe <dxcompiler.dll> <input.ll> <output.dxil>
 
 #include <Windows.h>
@@ -28,21 +27,45 @@ private:
     T *value_ = nullptr;
 };
 
+class ModuleHolder
+{
+public:
+    explicit ModuleHolder(HMODULE value) : value_(value) {}
+    ~ModuleHolder() { if (value_) FreeLibrary(value_); }
+    ModuleHolder(const ModuleHolder &) = delete;
+    ModuleHolder &operator=(const ModuleHolder &) = delete;
+    HMODULE get() const { return value_; }
+private:
+    HMODULE value_ = nullptr;
+};
+
 static void PrintBlob(IDxcBlobEncoding *blob)
 {
     if (blob && blob->GetBufferSize() != 0)
+    {
         std::fwrite(blob->GetBufferPointer(), 1, blob->GetBufferSize(), stderr);
+        std::fflush(stderr);
+    }
 }
 
 static HRESULT ReadStatus(IDxcOperationResult *result, const char *what)
 {
     if (result == nullptr)
+    {
+        std::fprintf(stderr, "%s returned a null operation result.\n", what);
         return E_FAIL;
+    }
+
     ComHolder<IDxcBlobEncoding> errors;
-    result->GetErrorBuffer(errors.put());
+    const HRESULT error_hr = result->GetErrorBuffer(errors.put());
+    if (FAILED(error_hr))
+        std::fprintf(stderr, "%s: GetErrorBuffer failed: 0x%08X\n", what, static_cast<unsigned>(error_hr));
     PrintBlob(errors.get());
+
     HRESULT status = E_FAIL;
-    result->GetStatus(&status);
+    const HRESULT status_hr = result->GetStatus(&status);
+    if (FAILED(status_hr))
+        std::fprintf(stderr, "%s: GetStatus failed: 0x%08X\n", what, static_cast<unsigned>(status_hr));
     if (FAILED(status))
         std::fprintf(stderr, "%s failed: 0x%08X\n", what, static_cast<unsigned>(status));
     return status;
@@ -60,17 +83,19 @@ int main(int argc, char **argv)
     const std::filesystem::path input_path = std::filesystem::u8path(argv[2]);
     const std::filesystem::path output_path = std::filesystem::u8path(argv[3]);
 
-    HMODULE library = LoadLibraryExW(compiler_path.c_str(), nullptr, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
-    if (library == nullptr)
+    HMODULE raw_library = LoadLibraryExW(compiler_path.c_str(), nullptr,
+        LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+    if (raw_library == nullptr)
     {
-        std::fprintf(stderr, "could not load DXC library: %lu\n", GetLastError());
+        std::fprintf(stderr, "could not load DXC library '%s': %lu\n", argv[1], GetLastError());
         return 2;
     }
+    ModuleHolder library(raw_library);
 
-    auto create = reinterpret_cast<DxcCreateInstanceProc>(GetProcAddress(library, "DxcCreateInstance"));
+    auto create = reinterpret_cast<DxcCreateInstanceProc>(GetProcAddress(library.get(), "DxcCreateInstance"));
     if (create == nullptr)
     {
-        std::fprintf(stderr, "DxcCreateInstance export not found\n");
+        std::fprintf(stderr, "DxcCreateInstance export not found in '%s'\n", argv[1]);
         return 2;
     }
 
@@ -114,32 +139,43 @@ int main(int argc, char **argv)
 
     ComHolder<IDxcOperationResult> assemble_result;
     hr = assembler->AssembleToContainer(source.get(), assemble_result.put());
-    if (FAILED(hr) || FAILED(ReadStatus(assemble_result.get(), "DXIL assembly")))
+    if (FAILED(hr))
     {
+        std::fprintf(stderr, "AssembleToContainer call failed: 0x%08X\n", static_cast<unsigned>(hr));
         return 5;
     }
+    if (FAILED(ReadStatus(assemble_result.get(), "DXIL assembly")))
+        return 5;
 
     ComHolder<IDxcBlob> container;
     hr = assemble_result->GetResult(container.put());
     if (FAILED(hr) || container.get() == nullptr)
     {
-        std::fprintf(stderr, "DXIL assembler returned no container\n");
+        std::fprintf(stderr, "DXIL assembler returned no container (hr=0x%08X).\n", static_cast<unsigned>(hr));
         return 5;
     }
 
     ComHolder<IDxcOperationResult> validation_result;
     hr = validator->Validate(container.get(), DxcValidatorFlags_InPlaceEdit, validation_result.put());
-    if (FAILED(hr) || FAILED(ReadStatus(validation_result.get(), "DXIL validation")))
+    if (FAILED(hr))
     {
+        std::fprintf(stderr, "IDxcValidator::Validate call failed: 0x%08X\n", static_cast<unsigned>(hr));
         return 6;
     }
+    if (FAILED(ReadStatus(validation_result.get(), "DXIL validation")))
+        return 6;
 
+    const size_t output_size = static_cast<size_t>(container->GetBufferSize());
     std::ofstream output(output_path, std::ios::binary);
+    if (!output)
+    {
+        std::fprintf(stderr, "could not open output DXIL path: %s\n", argv[3]);
+        return 7;
+    }
     output.write(static_cast<const char *>(container->GetBufferPointer()),
-                 static_cast<std::streamsize>(container->GetBufferSize()));
+                 static_cast<std::streamsize>(output_size));
     const bool written = output.good();
     output.close();
-    FreeLibrary(library);
 
     if (!written)
     {
@@ -147,6 +183,6 @@ int main(int argc, char **argv)
         return 7;
     }
 
-    std::printf("validated DXIL: %s (%zu bytes)\n", argv[3], static_cast<size_t>(container->GetBufferSize()));
+    std::printf("validated DXIL: %s (%zu bytes)\n", argv[3], output_size);
     return 0;
 }
