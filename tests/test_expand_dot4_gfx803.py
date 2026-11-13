@@ -3,7 +3,7 @@ from tools.windows.dxil.expand_dot4_gfx803 import expand_text
 
 class ExpandDot4Tests(unittest.TestCase):
     def test_expands_accumulating_dot(self):
-        ir = "%r = call i32 @dx.op.dot4AddPacked.i32(i32 163, i32 %acc, i32 %a, i32 %b)\n"
+        ir = "declare i32 @dx.op.dot4AddPacked.i32(i32, i32, i32, i32)\n%r = call i32 @dx.op.dot4AddPacked.i32(i32 163, i32 %acc, i32 %a, i32 %b)\n"
         out, count = expand_text(ir)
         self.assertEqual(count, 1)
         self.assertNotIn("@dx.op.dot4AddPacked", out)
