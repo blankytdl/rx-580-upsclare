@@ -190,6 +190,156 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void BuildDxilOverrides_Click(object sender, RoutedEventArgs e)
+    {
+        string addonDirectory = AddonDirectoryText.Text.Trim().Trim('"');
+        string overrideDirectory = OverrideDirectoryText.Text.Trim().Trim('"');
+        if (string.IsNullOrWhiteSpace(addonDirectory) || string.IsNullOrWhiteSpace(overrideDirectory))
+        {
+            MessageBox.Show(this, "Select the game and override directory first.", "Missing bridge paths",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        string configPath = Path.Combine(addonDirectory, "FSR4-GFX803.ini");
+        if (!File.Exists(configPath))
+        {
+            MessageBox.Show(this, "Install the ReShade bridge for this game first.", "Bridge not installed",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        string configuredOverride = ReadIniValue(configPath, "FSR4GFX803", "OverrideDirectory") ?? "";
+        string resolvedConfigured = Path.GetFullPath(Path.IsPathRooted(configuredOverride)
+            ? configuredOverride
+            : Path.Combine(addonDirectory, configuredOverride));
+        if (!PathsEqual(resolvedConfigured, overrideDirectory))
+        {
+            MessageBox.Show(this,
+                "The override directory in this page does not match the folder configured in FSR4-GFX803.ini. Remove and reinstall the bridge with the selected override directory before building.",
+                "Override directory mismatch", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        string dumpDirectory = Path.Combine(addonDirectory, "fsr4-overrides", "dump");
+        if (!Directory.Exists(dumpDirectory) || !Directory.EnumerateFiles(dumpDirectory, "*.dxil", SearchOption.TopDirectoryOnly).Any())
+        {
+            MessageBox.Show(this,
+                "No shader dumps were found. Enable shader dumping, launch the game, select AMD FSR 4, and play until FSR4 builds its compute pipelines. Then close the game and try again.",
+                "No FSR4 shader dumps", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        string toolsRoot = Path.Combine(AppContext.BaseDirectory, "tools");
+        string dxcDirectory = Path.Combine(toolsRoot, "dxc");
+        string dxc = Path.Combine(dxcDirectory, "dxc.exe");
+        string dxcompiler = Path.Combine(dxcDirectory, "dxcompiler.dll");
+        string assembler = Path.Combine(dxcDirectory, "dxilasm-win.exe");
+        string script = Path.Combine(toolsRoot, "windows", "build-fsr4-gfx803-dxil-overrides.ps1");
+        foreach (string required in new[] { dxc, dxcompiler, assembler, script })
+        {
+            if (!File.Exists(required))
+            {
+                MessageBox.Show(this, "The portable package is missing a DXIL tool required for transformation:\n" + required,
+                    "DXIL tool missing", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+        }
+
+        Directory.CreateDirectory(overrideDirectory);
+        var start = new ProcessStartInfo
+        {
+            FileName = "powershell.exe",
+            WorkingDirectory = ProfileStore.DataDirectory,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true
+        };
+        start.ArgumentList.Add("-NoLogo");
+        start.ArgumentList.Add("-NoProfile");
+        start.ArgumentList.Add("-ExecutionPolicy");
+        start.ArgumentList.Add("Bypass");
+        start.ArgumentList.Add("-File");
+        start.ArgumentList.Add(script);
+        start.ArgumentList.Add("-InputDirectory");
+        start.ArgumentList.Add(dumpDirectory);
+        start.ArgumentList.Add("-OutputDirectory");
+        start.ArgumentList.Add(overrideDirectory);
+        start.ArgumentList.Add("-DxcPath");
+        start.ArgumentList.Add(dxc);
+        start.ArgumentList.Add("-DxCompilerPath");
+        start.ArgumentList.Add(dxcompiler);
+        start.ArgumentList.Add("-AssemblerPath");
+        start.ArgumentList.Add(assembler);
+
+        AppendLog("Building GFX803 DXIL replacements from " + dumpDirectory);
+        BridgeStatusText.Text = "Expanding packed-int8 dot products and validating DXIL. Do not close the app…";
+        try
+        {
+            using var process = Process.Start(start) ?? throw new InvalidOperationException("PowerShell could not be started.");
+            Task<string> stdout = process.StandardOutput.ReadToEndAsync();
+            Task<string> stderr = process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync();
+            string outText = await stdout;
+            string errText = await stderr;
+            if (!string.IsNullOrWhiteSpace(outText)) AppendLog(outText.TrimEnd());
+            if (!string.IsNullOrWhiteSpace(errText)) AppendLog(errText.TrimEnd());
+            if (process.ExitCode == 0)
+            {
+                BridgeStatusText.Text = "DXIL replacements built and accepted by Microsoft's DXC validator. Restart the game to load them. This does not yet prove AMD's GFX803 ISA selection or performance.";
+                MessageBox.Show(this, BridgeStatusText.Text + "\n\nOutput folder:\n" + overrideDirectory,
+                    "DXIL replacements built", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
+            {
+                BridgeStatusText.Text = "DXIL transformation failed. See the ReShade bridge diagnostics and PowerShell output.";
+                MessageBox.Show(this, "The shader transformation failed with exit code " + process.ExitCode +
+                    ". Inspect the messages in Diagnostics and the generated tool logs.",
+                    "DXIL transformation failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            AppendLog("DXIL replacement build exited with code " + process.ExitCode);
+        }
+        catch (Exception ex)
+        {
+            BridgeStatusText.Text = ex.Message;
+            AppendLog("DXIL transformation error: " + ex.Message);
+            MessageBox.Show(this, ex.Message, "DXIL transformation error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private static string? ReadIniValue(string path, string section, string key)
+    {
+        if (!File.Exists(path)) return null;
+        string current = "";
+        foreach (string raw in File.ReadLines(path))
+        {
+            string line = raw.Trim();
+            if (line.Length == 0 || line.StartsWith(';') || line.StartsWith('#')) continue;
+            if (line.StartsWith('[') && line.EndsWith(']'))
+            {
+                current = line[1..^1].Trim();
+                continue;
+            }
+            if (!string.Equals(current, section, StringComparison.OrdinalIgnoreCase)) continue;
+            int equals = line.IndexOf('=');
+            if (equals > 0 && string.Equals(line[..equals].Trim(), key, StringComparison.OrdinalIgnoreCase))
+                return line[(equals + 1)..].Trim();
+        }
+        return null;
+    }
+
+    private static bool PathsEqual(string left, string right)
+    {
+        try
+        {
+            string a = Path.TrimEndingDirectorySeparator(Path.GetFullPath(left));
+            string b = Path.TrimEndingDirectorySeparator(Path.GetFullPath(right));
+            return string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+        }
+        catch { return false; }
+    }
+
     private void BrowseDll_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new OpenFileDialog
