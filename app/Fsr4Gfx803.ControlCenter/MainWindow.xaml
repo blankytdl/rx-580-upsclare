@@ -189,8 +189,22 @@
                                     <CheckBox x:Name="ExpandSdotCheck" Content="Expand packed signed dot products" IsChecked="True"/>
                                     <TextBlock Text="Shader set directory" FontWeight="SemiBold" Margin="0,13,0,7"/>
                                     <TextBox x:Name="ShaderSetsText" Margin="0,0,0,9"/>
-                                    <TextBlock Text="Shader cache directory" FontWeight="SemiBold" Margin="0,0,0,7"/>
-                                    <TextBox x:Name="ShaderCacheText"/>
+                                    <TextBlock Text="SPIR-V replacement cache directory" FontWeight="SemiBold" Margin="0,0,0,7"/>
+                                    <TextBox x:Name="ShaderCacheText" Margin="0,0,0,8"/>
+                                    <CheckBox x:Name="ProfileEachCheck" Content="Report each shader separately"/>
+                                    <TextBlock Text="Autotune samples per variant" FontWeight="SemiBold" Margin="0,5,0,6"/>
+                                    <TextBox x:Name="AutoTuneSamplesText" Text="60" Margin="0,0,0,8"/>
+                                    <TextBlock Text="Profiler minimum module size (bytes)" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                                    <TextBox x:Name="ProfileMinBytesText" Text="40000" Margin="0,0,0,8"/>
+                                    <TextBlock Text="Profiler report interval (seconds)" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                                    <TextBox x:Name="ProfileIntervalText" Text="5" Margin="0,0,0,8"/>
+                                    <TextBlock Text="Autotune variants directory" FontWeight="SemiBold" Margin="0,3,0,6"/>
+                                    <TextBox x:Name="VariantsDirectoryText" Margin="0,0,0,8"/>
+                                    <TextBlock Text="SPIR-V dump directory" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                                    <TextBox x:Name="DumpDirectoryText" Margin="0,0,0,8"/>
+                                    <TextBlock Text="Autotune choice cache file" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                                    <TextBox x:Name="TuneCacheText"/>
+
                                 </StackPanel>
                             </Grid>
                         </Border>
