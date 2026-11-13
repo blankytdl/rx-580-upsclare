@@ -39,9 +39,9 @@ jobs:
           $actual = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
           if ($actual -ne $expected) { throw "DXC archive SHA-256 mismatch: $actual" }
           Expand-Archive -LiteralPath $archive -DestinationPath deps/dxc -Force
-          $dxc = Get-ChildItem deps/dxc -Filter dxc.exe -Recurse | Select-Object -First 1
-          $compiler = Get-ChildItem deps/dxc -Filter dxcompiler.dll -Recurse | Select-Object -First 1
-          $validator = Get-ChildItem deps/dxc -Filter dxil.dll -Recurse | Select-Object -First 1
+          $dxc = Get-ChildItem deps/dxc -Filter dxc.exe -Recurse | Where-Object { $_.FullName -match '[\\/]x64[\\/]' } | Select-Object -First 1
+          $compiler = Get-ChildItem deps/dxc -Filter dxcompiler.dll -Recurse | Where-Object { $_.FullName -match '[\\/]x64[\\/]' } | Select-Object -First 1
+          $validator = Get-ChildItem deps/dxc -Filter dxil.dll -Recurse | Where-Object { $_.FullName -match '[\\/]x64[\\/]' } | Select-Object -First 1
           $header = Get-ChildItem deps/dxc -Filter dxcapi.h -Recurse | Select-Object -First 1
           if (!$dxc -or !$compiler -or !$validator -or !$header) { throw "The pinned DXC package is missing a required compiler, validator or header file." }
           "DXC_EXE=$($dxc.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
