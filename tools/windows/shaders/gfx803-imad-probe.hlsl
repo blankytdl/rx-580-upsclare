@@ -1,5 +1,4 @@
 // Copyright (c) 2026
-// SPDX-License-Identifier: MIT
 //
 // Compiler probe for the RX 580 / GFX803 Windows port.
 // Compile each entry point separately with AMD Radeon GPU Analyzer:
@@ -26,10 +25,8 @@ int ExtractSignedByte(uint packed, uint byteIndex)
     return (int)(packed << (24u - shift)) >> 24;
 }
 
-int ExpandedDot4Add(int packedA, int packedB, int accumulator)
+int ExpandedDot4Add(uint a, uint b, int accumulator)
 {
-    uint a = (uint)packedA;
-    uint b = (uint)packedB;
 
     int a0 = ExtractSignedByte(a, 0u);
     int a1 = ExtractSignedByte(a, 1u);
@@ -64,5 +61,5 @@ void ExpandedCS(uint3 dispatchThreadId : SV_DispatchThreadID)
 {
     uint2 pair = gPackedPairs[dispatchThreadId.x];
     gResults[dispatchThreadId.x] =
-        ExpandedDot4Add((int)pair.x, (int)pair.y, 0);
+        ExpandedDot4Add(pair.x, pair.y, 0);
 }
