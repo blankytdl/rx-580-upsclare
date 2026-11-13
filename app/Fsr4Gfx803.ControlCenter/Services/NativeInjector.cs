@@ -17,7 +17,7 @@ public static class NativeInjector
     private const uint PageReadWrite = 0x04;
     private const uint MemRelease = 0x8000;
     private const uint WaitObject0 = 0;
-    private const uint ImageFileMachineUnknown = 0;
+    private const ushort ImageFileMachineUnknown = 0;
     private const ushort ImageFileMachineAmd64 = 0x8664;
 
     public static InjectionResult InjectDll(int processId, string dllPath)
@@ -30,10 +30,11 @@ public static class NativeInjector
             return new(false, "Choose a .dll file.");
         if (!Environment.Is64BitProcess)
             return new(false, "This build is 64-bit only. Use the x64 application.");
-        
+
         IntPtr process = IntPtr.Zero;
         IntPtr remoteBuffer = IntPtr.Zero;
         IntPtr thread = IntPtr.Zero;
+        bool remoteThreadMayStillReadBuffer = false;
         try
         {
             process = OpenProcess(
@@ -66,9 +67,14 @@ public static class NativeInjector
 
             uint wait = WaitForSingleObject(thread, 15000);
             if (wait != WaitObject0)
+            {
+                // The remote thread may still be reading this path. Keep the allocation alive
+                // rather than freeing memory underneath a thread that has not completed.
+                remoteThreadMayStillReadBuffer = true;
                 return new(false, wait == 0x102
-                    ? "The remote LoadLibrary call timed out. The DLL may still be loading; check the game before trying again."
-                    : $"The remote thread returned wait status 0x{wait:X}.");
+                    ? "The remote LoadLibrary call timed out. The thread may still be running; the remote path buffer was left allocated for safety. Check the game before retrying."
+                    : $"The remote thread returned wait status 0x{wait:X}. The remote path buffer was left allocated for safety.");
+            }
 
             if (!GetExitCodeThread(thread, out uint moduleHandle) || moduleHandle == 0)
                 return new(false, "LoadLibraryW returned NULL. Check the DLL architecture and its dependencies.");
@@ -82,7 +88,7 @@ public static class NativeInjector
         finally
         {
             if (thread != IntPtr.Zero) CloseHandle(thread);
-            if (remoteBuffer != IntPtr.Zero && process != IntPtr.Zero)
+            if (remoteBuffer != IntPtr.Zero && process != IntPtr.Zero && !remoteThreadMayStillReadBuffer)
                 VirtualFreeEx(process, remoteBuffer, 0, MemRelease);
             if (process != IntPtr.Zero) CloseHandle(process);
         }
