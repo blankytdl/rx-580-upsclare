@@ -235,8 +235,9 @@ public partial class MainWindow : Window
         string dxc = Path.Combine(dxcDirectory, "dxc.exe");
         string dxcompiler = Path.Combine(dxcDirectory, "dxcompiler.dll");
         string assembler = Path.Combine(dxcDirectory, "dxilasm-win.exe");
+        string transformer = Path.Combine(dxcDirectory, "dxil-dot4-rewrite.exe");
         string script = Path.Combine(toolsRoot, "windows", "build-fsr4-gfx803-dxil-overrides.ps1");
-        foreach (string required in new[] { dxc, dxcompiler, assembler, script })
+        foreach (string required in new[] { dxc, dxcompiler, assembler, transformer, script })
         {
             if (!File.Exists(required))
             {
@@ -272,6 +273,8 @@ public partial class MainWindow : Window
         start.ArgumentList.Add(dxcompiler);
         start.ArgumentList.Add("-AssemblerPath");
         start.ArgumentList.Add(assembler);
+        start.ArgumentList.Add("-TransformerPath");
+        start.ArgumentList.Add(transformer);
 
         AppendLog("Building GFX803 DXIL replacements from " + dumpDirectory);
         BridgeStatusText.Text = "Expanding packed-int8 dot products and validating DXIL. Do not close the app…";
