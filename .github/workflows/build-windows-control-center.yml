@@ -90,8 +90,12 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force artifacts/publish/tools/windows | Out-Null
           Copy-Item tools/windows/* artifacts/publish/tools/windows/ -Recurse -Force
-          New-Item -ItemType Directory -Force artifacts/publish/addons | Out-Null
+          New-Item -ItemType Directory -Force artifacts/publish/addons/src | Out-Null
           Copy-Item artifacts/addons/FSR4-GFX803.addon64 artifacts/publish/addons/FSR4-GFX803.addon64 -Force
+          Copy-Item addons/src/fsr4_gfx803_addon.cpp artifacts/publish/addons/src/fsr4_gfx803_addon.cpp -Force
+          Copy-Item addons/LICENSE artifacts/publish/addons/LICENSE -Force
+          Copy-Item LICENSE artifacts/publish/LICENSE -Force
+          Copy-Item THIRD_PARTY_NOTICES.md artifacts/publish/THIRD_PARTY_NOTICES.md -Force
           New-Item -ItemType Directory -Force artifacts/publish/tools/dxc | Out-Null
           Copy-Item $env:DXC_EXE artifacts/publish/tools/dxc/dxc.exe -Force
           Copy-Item $env:DXC_DLL artifacts/publish/tools/dxc/dxcompiler.dll -Force
