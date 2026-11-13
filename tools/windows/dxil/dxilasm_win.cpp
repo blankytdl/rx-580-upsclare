@@ -4,7 +4,7 @@
 // Usage: dxilasm-win.exe <dxcompiler.dll> <input.ll> <output.dxil>
 
 #include <Windows.h>
-#include <dxc/dxcapi.h>
+#include <dxcapi.h>
 
 #include <cstdio>
 #include <fstream>
