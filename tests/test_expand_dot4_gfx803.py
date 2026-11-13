@@ -7,6 +7,7 @@ class ExpandDot4Tests(unittest.TestCase):
         out, count = expand_text(ir)
         self.assertEqual(count, 1)
         self.assertNotIn("@dx.op.dot4AddPacked", out)
+        self.assertNotIn("declare i32 @dx.op.dot4AddPacked", out)
         self.assertEqual(out.count(" = mul i32 "), 4)
         self.assertEqual(out.count(" = ashr i32 "), 8)
         self.assertIn("%r = add i32 ", out)
