@@ -1,0 +1,57 @@
+name: Build Windows Control Center
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "tools/windows/**"
+      - ".github/workflows/build-windows-control-center.yml"
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows-x64:
+    runs-on: windows-2022
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Publish self-contained single-file application
+        shell: pwsh
+        run: dotnet publish app/Fsr4Gfx803.ControlCenter/Fsr4Gfx803.ControlCenter.csproj --configuration Release --runtime win-x64 --self-contained true --output artifacts/publish -p:PublishSingleFile=true -p:IncludeAllContentForSelfExtract=true -p:IncludeNativeLibrariesForSelfExtract=true
+
+      - name: Include GFX803 diagnostic scripts
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts/publish/tools/windows | Out-Null
+          Copy-Item tools/windows/* artifacts/publish/tools/windows/ -Recurse -Force
+          Set-Content artifacts/publish/BUILD.txt "FSR4 GFX803 Control Center | Windows x64 | .NET 8 self-contained | $env:GITHUB_SHA"
+
+      - name: Create portable ZIP
+        shell: pwsh
+        run: Compress-Archive -Path artifacts/publish/* -DestinationPath artifacts/FSR4-GFX803-ControlCenter-win-x64.zip -Force
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FSR4-GFX803-ControlCenter-win-x64
+          path: artifacts/FSR4-GFX803-ControlCenter-win-x64.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish tagged release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/FSR4-GFX803-ControlCenter-win-x64.zip
